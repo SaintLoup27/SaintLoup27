@@ -27,6 +27,7 @@ FRAIS :
 import argparse
 import logging
 import sys
+import threading
 import time
 from datetime import datetime, timezone
 
@@ -37,7 +38,7 @@ from binance.exceptions import BinanceAPIException
 import config as cfg
 from strategies.active import scan_pair, get_position
 from strategies.scalp  import run_scalper
-from utils.notifier    import send_telegram
+from utils.notifier    import send_telegram, get_updates
 from utils.portfolio   import (
     get_positions, get_history, get_initial_value, set_initial_value
 )
@@ -206,6 +207,29 @@ def print_report(client: Client) -> None:
 
 
 # ──────────────────────────────────────────────────────────────────────────────
+#  Listener de commandes Telegram
+# ──────────────────────────────────────────────────────────────────────────────
+
+def command_listener(client: Client) -> None:
+    """Thread daemon : écoute les commandes Telegram et répond."""
+    offset = 0
+    log.info("Telegram command listener démarré. Commandes dispo : /debrief")
+    while True:
+        try:
+            updates = get_updates(cfg.TELEGRAM_TOKEN, offset=offset)
+            for update in updates:
+                offset = update["update_id"] + 1
+                msg  = update.get("message", {})
+                text = msg.get("text", "").strip().lower()
+                if text == "/debrief":
+                    log.info("Commande /debrief reçue via Telegram")
+                    daily_report(client)
+        except Exception as e:
+            log.warning(f"command_listener error: {e}")
+        time.sleep(1)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
 #  Main
 # ──────────────────────────────────────────────────────────────────────────────
 
@@ -240,6 +264,10 @@ def main() -> None:
             f"Paires : {', '.join(cfg.ACTIVE_CONFIG['assets'].keys())}\n"
             f"Timeframe : {cfg.ACTIVE_CONFIG['timeframe']} | Scan : {interval}s"
         )
+
+    # Listener de commandes Telegram (thread daemon)
+    t = threading.Thread(target=command_listener, args=(client,), daemon=True)
+    t.start()
 
     # Premier scan immédiat
     active_scan(client, dry_run=args.dry_run)
