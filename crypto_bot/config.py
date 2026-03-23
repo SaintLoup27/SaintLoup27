@@ -13,42 +13,74 @@ load_dotenv()
 # ─────────────────────────────────────────────
 BINANCE_API_KEY    = os.getenv("BINANCE_API_KEY", "")
 BINANCE_API_SECRET = os.getenv("BINANCE_API_SECRET", "")
-TESTNET            = os.getenv("TESTNET", "true").lower() == "true"  # Mettre "false" en production
+TESTNET            = os.getenv("TESTNET", "true").lower() == "true"
 
 # ─────────────────────────────────────────────
-#  STRATÉGIE DCA (Dollar Cost Averaging)
+#  STRATÉGIE ACTIVE (RSI + EMA)
+#  Scan toutes les N minutes sur bougies courtes
 # ─────────────────────────────────────────────
-DCA_CONFIG = {
-    # Paires à acheter et montant en USDT par achat
+ACTIVE_CONFIG = {
+    # Paires à trader et capital alloué par trade (en USDT)
     "assets": {
-        "BTCUSDT":  20,   # 20 $ de BTC à chaque cycle
-        "ETHUSDT":  15,   # 15 $ d'ETH à chaque cycle
-        "SOLUSDT":  10,   # 10 $ de SOL à chaque cycle
-        "BNBUSDT":  5,    # 5 $ de BNB à chaque cycle
+        "BTCUSDT": 50,
+        "ETHUSDT": 30,
+        "SOLUSDT": 20,
+        "BNBUSDT": 15,
     },
-    # Intervalle entre chaque achat (en heures)
-    # 168 = une fois par semaine, 24 = quotidien, 1 = horaire
-    "interval_hours": 168,
 
-    # Ne pas acheter si le prix a baissé de plus de X% en 24h (panic dip guard)
-    # Mettre None pour désactiver
-    "max_dip_24h_pct": None,
+    # Timeframe des bougies pour les indicateurs
+    # "1m" = 1 minute | "3m" | "5m" | "15m"
+    "timeframe": "5m",
 
-    # Prendre des bénéfices si un actif a gagné X% depuis le prix moyen d'achat
-    # Mettre None pour désactiver
-    "take_profit_pct": 50,
+    # Intervalle de scan (en secondes)
+    # 60 = toutes les minutes, 300 = toutes les 5 min
+    "scan_interval_seconds": 60,
+
+    # RSI
+    "rsi_period": 14,
+    "rsi_buy":    35,    # Acheter si RSI < 35 (survente)
+    "rsi_sell":   65,    # Vendre si RSI > 65 (surachat)
+
+    # EMA crossover
+    "ema_fast": 9,
+    "ema_slow": 21,
+
+    # Stop-loss et take-profit par trade (en %)
+    "stop_loss_pct":   1.5,   # Couper la perte à -1.5%
+    "take_profit_pct": 2.5,   # Prendre bénéfice à +2.5%
 }
 
 # ─────────────────────────────────────────────
-#  STRATÉGIE GRILLE (Grid Trading) — optionnel
+#  STRATÉGIE SCALPING TEMPS RÉEL (WebSocket)
+#  Réagit en quelques secondes sur flux de prix
 # ─────────────────────────────────────────────
-GRID_CONFIG = {
+SCALP_CONFIG = {
+    # Activer le scalping (désactive le mode scan si True)
     "enabled": False,
-    "pair":        "BTCUSDT",
-    "lower_price": 50000,
-    "upper_price": 80000,
-    "num_grids":   10,
-    "amount_per_grid": 10,   # USDT par ordre de grille
+
+    # Paires et capital par trade
+    "assets": {
+        "BTCUSDT": 30,
+        "ETHUSDT": 20,
+    },
+
+    # Fenêtre glissante en secondes pour calculer la tendance
+    "window_seconds": 30,
+
+    # Acheter si le prix monte de X% dans la fenêtre (momentum)
+    "momentum_buy_pct": 0.08,
+
+    # Vendre si le prix baisse de X% depuis l'entrée (stop-loss)
+    "stop_loss_pct": 0.5,
+
+    # Prendre bénéfice si +X% depuis l'entrée
+    "take_profit_pct": 0.8,
+
+    # Temps max de détention d'une position (secondes) — sortie forcée
+    "max_hold_seconds": 120,
+
+    # Délai minimum entre deux trades sur la même paire (secondes)
+    "cooldown_seconds": 30,
 }
 
 # ─────────────────────────────────────────────
@@ -58,10 +90,10 @@ TELEGRAM_TOKEN   = os.getenv("TELEGRAM_TOKEN", "")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
 NOTIFY_ON_BUY         = True
 NOTIFY_ON_TAKE_PROFIT = True
-NOTIFY_DAILY_REPORT   = True   # Rapport quotidien à 08h00
+NOTIFY_DAILY_REPORT   = True
 
 # ─────────────────────────────────────────────
 #  SÉCURITÉ
 # ─────────────────────────────────────────────
-MAX_PORTFOLIO_USDT = 10_000   # Limite absolue (en USDT) que le bot peut déployer
-STOP_LOSS_PORTFOLIO_PCT = 30  # Stopper le bot si le portfolio perd X% de sa valeur initiale
+MAX_PORTFOLIO_USDT      = 10_000
+STOP_LOSS_PORTFOLIO_PCT = 30
