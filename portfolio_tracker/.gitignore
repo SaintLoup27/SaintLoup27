@@ -1,0 +1,6 @@
+# Données personnelles du portefeuille + cache des cours : jamais versionnés
+data/
+*.json.bak
+__pycache__/
+*.pyc
+.venv/

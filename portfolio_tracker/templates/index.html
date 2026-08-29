@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mon portefeuille — actions & ETF</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>📈</text></svg>">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="logo">📈</span>
+    <div>
+      <h1>Mon portefeuille</h1>
+      <p class="sub" id="asof">actions &amp; ETF — suivi local</p>
+    </div>
+  </div>
+  <div class="kpis" id="kpis"></div>
+  <div class="topactions">
+    <label class="auto"><input type="checkbox" id="autoRefresh"> auto 1 min</label>
+    <button class="btn" id="refreshBtn">↻ Actualiser les cours</button>
+  </div>
+</header>
+
+<main>
+  <!-- ══════════════ Colonne principale ══════════════ -->
+  <section class="col-main">
+
+    <div class="card">
+      <div class="card-head">
+        <h2>Mes lignes</h2>
+        <span class="muted" id="quoteInfo"></span>
+      </div>
+      <div class="table-wrap">
+        <table id="positions">
+          <thead>
+            <tr>
+              <th>Ticker</th><th>Classe</th><th class="num">Qté</th><th class="num">PRU</th>
+              <th class="num">Cours</th><th class="num">Jour</th><th class="num">Valeur</th>
+              <th class="num">+/- value</th><th class="num">Poids</th><th></th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <p class="empty" id="emptyPositions" hidden>Aucune ligne pour l'instant — ajoute ton premier achat ci-dessous.</p>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h2>Ajouter une opération</h2></div>
+      <form id="txForm" class="form-grid" autocomplete="off">
+        <div class="field span2 search">
+          <label for="symbol">Ticker ou nom</label>
+          <input id="symbol" name="symbol" placeholder="ex. CW8.PA, AAPL, « MSCI World »" required>
+          <div class="suggestions" id="suggestions" hidden></div>
+          <p class="hint" id="symbolHint"></p>
+        </div>
+        <div class="field">
+          <label for="type">Opération</label>
+          <select id="type" name="type">
+            <option value="BUY">Achat</option>
+            <option value="SELL">Vente</option>
+            <option value="DIV">Dividende</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="qty">Quantité</label>
+          <input id="qty" name="qty" type="number" step="any" min="0" placeholder="10" required>
+        </div>
+        <div class="field">
+          <label for="price" id="priceLabel">Prix unitaire</label>
+          <input id="price" name="price" type="number" step="any" min="0" placeholder="123.45" required>
+        </div>
+        <div class="field">
+          <label for="fees">Frais</label>
+          <input id="fees" name="fees" type="number" step="any" min="0" placeholder="0.99">
+        </div>
+        <div class="field">
+          <label for="date">Date</label>
+          <input id="date" name="date" type="date">
+        </div>
+        <div class="field">
+          <label for="note">Note</label>
+          <input id="note" name="note" placeholder="PEA, CTO…">
+        </div>
+        <div class="field actions">
+          <button class="btn primary" type="submit">Ajouter</button>
+        </div>
+      </form>
+      <p class="error" id="formError" hidden></p>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h2>Historique</h2>
+        <a class="btn ghost" href="/api/export.csv">Exporter CSV</a>
+      </div>
+      <div class="table-wrap">
+        <table id="history">
+          <thead>
+            <tr><th>Date</th><th>Type</th><th>Ticker</th><th class="num">Qté</th>
+                <th class="num">Prix</th><th class="num">Frais</th><th class="num">Montant</th>
+                <th>Note</th><th></th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <p class="empty" id="emptyHistory" hidden>Aucune opération enregistrée.</p>
+    </div>
+  </section>
+
+  <!-- ══════════════ Encadré conseils ══════════════ -->
+  <aside class="col-side">
+
+    <div class="card advice">
+      <div class="card-head">
+        <h2>💡 Conseils</h2>
+        <span class="score" id="score"></span>
+      </div>
+      <div id="tips"></div>
+      <ul class="checklist" id="checklist"></ul>
+      <p class="disclaimer">
+        Analyse automatique de <em>ton</em> portefeuille (diversification, concentration,
+        frais, allocation). Ce n'est pas un conseil en investissement personnalisé :
+        les décisions restent les tiennes.
+      </p>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h2>Répartition</h2></div>
+      <div class="donut-wrap">
+        <svg id="donut" viewBox="0 0 42 42"></svg>
+        <div class="legend" id="legend"></div>
+      </div>
+      <div class="split" id="byCurrency"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h2>Réglages</h2></div>
+      <form id="settingsForm" class="settings">
+        <label>Devise de référence
+          <select name="base_currency">
+            <option>EUR</option><option>USD</option><option>CHF</option><option>GBP</option><option>CAD</option>
+          </select>
+        </label>
+        <label>Liquidités disponibles
+          <input name="cash" type="number" step="any" min="0">
+        </label>
+        <label>Versement mensuel prévu
+          <input name="monthly_contribution" type="number" step="any" min="0">
+        </label>
+        <fieldset>
+          <legend>Allocation cible (%)</legend>
+          <div id="targets" class="targets"></div>
+        </fieldset>
+        <button class="btn" type="submit">Enregistrer</button>
+        <span class="saved" id="savedFlag" hidden>✓ enregistré</span>
+      </form>
+    </div>
+  </aside>
+</main>
+
+<script>window.ASSET_CLASSES = {{ asset_classes | tojson }};</script>
+<script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
